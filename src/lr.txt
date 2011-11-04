@@ -1,0 +1,276 @@
+# Copyright (c) 2011, MIPS Technologies, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions, and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions, and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#    * Neither the name of MIPS Technologies, Inc. nor the
+#      names of its contributors may be used to endorse or promote products
+#      derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL MIPS TECHNOLOGIES, INC. BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES,
+# LOSS OF USE, DATA, OR PROFITS, OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+
+
+#
+#
+# Grammar for LLVM assembly
+#
+grammar llvm_assembly {
+
+llvm_assembly -> module;
+
+module -> top_level_entity* ;   # top level definition    
+
+top_level_entity ->
+  function_declaration |
+  function_body |
+  'module' 'asm' '<string_constant>' |
+  'target' 'triple' '=' '<string_constant>' |
+  'target' 'datalayout' '=' '<string_constant>' |
+  'deplibs' '=' '[' '<string_constant>'* list ',' ']' |
+  unnamed_type | 
+  local_var_id_definition |
+  local_var_definition |
+  global_var_id_definition |
+  global_var_definition |
+  standalone_metadata |
+  metadata |
+  global_var
+  ;
+
+
+global_var ->
+   linkage? visibility? 'thread_local'? addr_space? 'unnamed_addr'?
+   constant_or_global type linkage? 
+   ;
+
+
+addr_space -> 'addrspace' '(' uint32 ')' ;
+ 
+constant_or_global -> 'constant' | 'global'
+  ;
+
+function_declaration -> 'declare' function_header;
+
+function_definition -> 'define' '{' function_header function_body '}';
+
+function_header ->
+  linkage? visibility? calling_convention? ret_attr?
+  unname_attr? type global_name '(' arg_list ')' func_attr? section?
+  align? GC?
+  ;
+
+function_body ->
+    basic_block+ ;
+
+basic_block ->
+   (label '=')? instr* ;
+
+label ->
+  local_name ;
+
+
+instr -> 'unwind' 
+      -> 'unreachable' 
+      -> ret  
+      -> br  
+      -> switch 
+      -> indirectbr 
+      -> invoke 
+      -> resume 
+      -> add 
+      -> sub 
+      -> mul 
+      -> shl 
+      -> fadd 
+      -> fsub 
+      -> fmul 
+      -> sdiv 
+      -> udiv 
+      -> lshr 
+      -> ashr 
+      -> urem 
+      -> srem 
+      -> fdiv 
+      -> frem 
+      -> and 
+      -> or 
+      -> xor 
+      -> icmp 
+      -> fcmp
+      -> trunc
+      -> zext
+      -> sext
+      -> fptrunc
+      -> fpext
+      -> bitcast
+      -> uitofp
+      -> sitofp
+      -> fptoui
+      -> fptosi
+      -> inttoptr
+      -> ptroint
+      -> select
+      -> va_arg
+      -> extractelement
+      -> insertelement
+      -> shufflevector
+      -> phi
+      -> call
+      -> tail
+      -> alloca
+      -> load
+      -> store
+      -> cmpxchg
+      -> atomicrmw
+      -> getelementptr
+      -> extractvalue
+      -> insertvalue
+    ;
+   
+ret ->
+   'ret' 'void' |
+   'ret' type value;
+
+br -> 
+   'br' type_and_value |
+   'br' type_and_value ',' type_and_value ',' type_and_value
+    ;
+
+switch ->
+    'switch' type_and_value ',' type_and_value '[' jump_table ']'
+    ;
+
+jump_table -> (type_and_value ',' type_and_value )*
+    ;
+
+indirectbr -> 'indirectbr' type_and_value ',' 
+      '[' type_and_basic_block list ',' ']'
+    ;
+    
+type_and_value -> type value ;
+
+type_and_basic_block_list -> type basic_block* ;
+ 
+align -> 'align' '<integer_literal>' ;
+
+func_attr -> func_only_attrs | common_attr;
+
+ret_attr ->  common_attr;
+
+unname_attr -> common_attr ;
+
+section -> 'section' '<string_literal>' ;
+
+GC -> 'gc' '<string_literal>' ;
+
+func_only_attr ->
+    'alwaysinline' | 
+    'align' '(' '<integer_literal>' ')' |
+    'alignstack' '(' '<integer_literal>' ')' |
+    'inlinehint' | 'naked' |
+    'noimplicitfloat' | 'noinline' |  'noredzone' |
+    'noreturn'| 'nounwind' | 
+    'optsize' | 'readnone' | 'readonly' | 'ssp' | 'sspreq' 
+    ;
+ 
+paramater_only_attr ->
+   'byval' | 'nest' | 'nocapture' | 'sret' 
+   ;
+
+common_attr ->
+   'signext' | 'zeroext' | 'inreg' | 'noalias' | 'uwtable' |
+   'hotpatch' | 'nonlazybind'    
+    ;
+
+linkage ->
+    'appending' | 'available_externally' |  'common' |  'dllexport' |
+    'dllimport' | 'extern_weak' | 'external' |'internal' | 'linker_private' | 
+    'linker_private_weak' | 'linker_private_weak_def_auto'| 
+    'linkonce' | 'linkonce_odr' |'private'  | 'private_weak' |
+     'weak' | 'weak_odr' 
+    ;
+
+visibility ->
+    'default' | 'hidden' | 'protect'
+    ;
+
+calling_convention ->
+    'ccc' | 'fastcc' | 'coldcc' | 'x86_stdcallcc' | 'x86_fastcallc' |
+    'x86_thiscallcc' | 'arm_aspscc' | 'arm_aapcscc' | 'arm_aapcs_vfpcc' |
+    'msp430_intrcc' | 'ptx_kernel' | 'ptx_device' |
+    'cc' '<integer_literal>' ;
+
+type -> primitve_type | anon_struct_type | array_vector_type |
+        '<local_name>' | type '*' | 
+        type 'addrspace' '(' '<integer_literal>' ')' '*' |
+        type '(' arg_type_list_i ')' func_attrs ?
+
+  ;     
+
+parameter_list ->
+    '(' (arg list ',')? ')' ;
+
+
+arg_list -> '(' arg_type_list ')' ;
+
+arg_type_list ->
+    (arg_type list ',')? '...'?
+    ;
+    
+arg_type -> type attr* ;
+                
+anon_struct_type ->
+   '{' '}' |
+   '{' type list ',' '}' |
+   '<' '{' '}' '>' |
+   '<' '{' type list ',' '}' '>'
+   ;
+
+array_vector_type ->
+   '[' '<integer_literal>' 'x' type ']' |
+   '<' '<integer_literal>' 'x' type '>'
+    ;
+
+
+'<name>' -> '<global_name>' | '<local_name>' ;
+
+'<global_name>' -> '@' '<name_suffix>' ;
+
+'<local_name>' -> '%' '<name_suffix>';
+
+'<name_suffix>' -> (named_value | unnamed_value | constant ) ;
+
+'<global_var>' -> '@' '<string_literal>' ;
+
+'<global_id>' -> '%' '<integer_literal>' ;
+
+'<local_id>' -> '%' '<integer_literal>' ;
+
+'<local_var>' -> '@' '<string_literal>' ;
+
+'<integer_type>' ->
+    'i' '<integer_literal>' ;
+
+primitive_type -> 
+    integer_type |
+    'float' | 'double'| 'fp128' | 'x86_fp80' | 'ppc_fp128' | 'void' |
+    'label' | 'metadata' | 'x86_mmx'
+    ;
+
+}
+
