@@ -1,0 +1,1 @@
+The initial goal is to develop a complete  syntax for LLVM assembly using a regular expression syntax. A small tool is being developed to check the grammar and develop cross reference and such. This is very much a work in progress.
